@@ -1,0 +1,38 @@
+# 容器环境检测函数
+is_container() {
+    # 方法1：检查 /.dockerenv 文件存在性
+    if [ -f "/.dockerenv" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# 更换 apt 源成为清华源，废止 sources.list
+if [ -f /etc/apt/sources.list ]; then
+    apt-get update && apt-get install -y ca-certificates
+
+    grep -v '^#\|^$' /etc/apt/sources.list | sed 's,https\?://[^/]*/,https://mirrors.tuna.tsinghua.edu.cn/,' | sort -u > /etc/apt/sources.list.d/tuna.sources.list
+    mv /etc/apt/sources.list{,.orig}
+fi
+
+# 有些环境比如容器中 locale 环境不完整，导致中文乱码
+apt-get update && apt-get install -y dialog
+
+if ! locale -a | grep -q "^en_US.UTF-8$"; then
+    apt-get install -y locales
+    sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen
+    locale-gen en_US.UTF-8
+    update-locale LANG=en_US.UTF-8
+    export LANG=en_US.UTF-8
+fi
+
+apt-get update && apt-get install -y neovim btop iptraf-ng docker.io docker-compose
+
+mkdir -p ~/.config/{tmux,nvim}
+
+if [ -f ~/.config/tmux/tmux.conf ]; then
+    echo tmux.conf 已存在，跳过。
+else
+    ln -s ~/flw-panel/tmux.conf ~/.config/tmux/
+fi
